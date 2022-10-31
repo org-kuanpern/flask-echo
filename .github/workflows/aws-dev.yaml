@@ -55,7 +55,6 @@ jobs:
         echo "now you see me! (${TIMESTAMP})" > see-me.txt
         git add see-me.txt
         git commit -m "update-artifact"
-        git push origin dev
         git push https://${TOKEN}@github.com/org-kuanpern/eks03-app-manifest.git
 
 
