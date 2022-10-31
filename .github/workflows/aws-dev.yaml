@@ -23,7 +23,6 @@ jobs:
   test-push-other:
     name: Deploy
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
     - name: Checkout this
@@ -60,6 +59,15 @@ jobs:
         git commit -m "update-artifact"
         git push https://${TOKEN}@github.com/org-kuanpern/eks03-app-manifest.git
 
+    - name: Make pull request (main branch only)
+      id: update-helm-values
+      run: |
+        if [${{ github.ref }} = 'refs/heads/main']
+        then
+          gh pr create --base main --fill
+        else
+          echo ${{ github.ref }}
+        fi
 
 #  deploy:
 #    name: Deploy
@@ -98,34 +106,3 @@ jobs:
 #        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 #        IMAGE_SHA=`docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG | awk 'BEGIN{FS="@"}{print $2}'`
 #        echo "::set-output name=image_sha::$IMAGE_SHA"
-#    - name: Update Helm chart values in manifest git repo
-#      id: update-helm-values
-#      env:
-#        RUN_ID: $ {{ github.run_id }}
-#        TIMESTAMP: ${{ steps.get-timestamp.outputs.timestamp }}
-#        IMAGE_NAME: ${{ steps.build-image.outputs.image }}
-#      run: |
-#        curl -v \
-#          -X POST \
-#          -H "apikey: ${{ env.WEBHOOK_API_KEY }}" \
-#          -H "Content-Type: application/json" \
-#          -d '{"login":"my_login","password":"my_password"}' \
-#          http://api_org-test.apigee.net/v1/helloapikey
-
-
-
-
-# update the code using input values
-# make pull request (prod), or directly push (dev)
-# git clone repo
-# authenticate user
-# verify permission to update the branch
-# update branch with values etc etc (needs flask)
-# pass over metadata
-# API key\
-
-# github app can listen to this id, but wouldn't know the values
-# can send directly to the cluster, but need to identify myself securely
-# can use api key
-# api key must match
-# build id must match
