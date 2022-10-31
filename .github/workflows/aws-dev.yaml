@@ -68,7 +68,7 @@ jobs:
       env:
         target: "main"
       run: |
-        if ['${{ github.ref }}' = '${target}']
+        if ['${github.ref}' = '${target}']
         then
           gh pr create --base main --fill
         else
