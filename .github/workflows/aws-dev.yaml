@@ -50,7 +50,7 @@ jobs:
     - name: Update Helm chart values in manifest git repo
       id: update-helm-values
       env:
-        RUN_ID: $ {{ github.run_id }}
+        RUN_ID: ${{ github.run_id }}
         TIMESTAMP: ${{ steps.get-timestamp.outputs.timestamp }}
         IMAGE_NAME: ${{ steps.build-image.outputs.image }}
         TOKEN: ${{ steps.fetch-token.outputs.token }}
@@ -65,8 +65,10 @@ jobs:
 
     - name: Make pull request (main branch only)
       id: make-pull-request
+      env:
+        target: "main"
       run: |
-        if ['${{ github.ref }}' = 'refs/heads/main']
+        if ['${{ github.ref }}' = '${target}']
         then
           gh pr create --base main --fill
         else
