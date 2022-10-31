@@ -54,6 +54,8 @@ jobs:
         TIMESTAMP: ${{ steps.get-timestamp.outputs.timestamp }}
         IMAGE_NAME: ${{ steps.build-image.outputs.image }}
         TOKEN: ${{ steps.fetch-token.outputs.token }}
+        target: "refs/heads/main"
+        GH_TOKEN: ${{ steps.fetch-token.outputs.token }}
       run: |
         cd eks03-app-manifest
         echo "now you see me! (${TIMESTAMP})" > see-me.txt
@@ -63,19 +65,26 @@ jobs:
         git commit -m "update-artifact"
         git push https://${TOKEN}@github.com/org-kuanpern/eks03-app-manifest.git
 
-    - name: Make pull request (main branch only)
-      id: make-pull-request
-      env:
-        target: "refs/heads/main"
-        GH_TOKEN: ${{ steps.fetch-token.outputs.token }}
-      run: |
         if [ ${target} = '${{ github.ref }}' ]
         then
-          cd eks03-app-manifest
+          echo 'make pull request'
           gh pr create --base main --fill
-        else
-          echo 'Do nothing for "${{ github.ref }}" branch'
         fi
+
+
+#    - name: Make pull request (main branch only)
+#      id: make-pull-request
+#      env:
+#        target: "refs/heads/main"
+#        GH_TOKEN: ${{ steps.fetch-token.outputs.token }}
+#      run: |
+#        if [ ${target} = '${{ github.ref }}' ]
+#        then
+#          cd eks03-app-manifest
+#          gh pr create --base main --fill
+#        else
+#          echo 'Do nothing for "${{ github.ref }}" branch'
+#        fi
 
 #  deploy:
 #    name: Deploy
