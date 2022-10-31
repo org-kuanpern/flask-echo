@@ -61,16 +61,20 @@ jobs:
         echo "now you see me! (${TIMESTAMP})" > see-me.txt
         git add see-me.txt
         git config --global user.email "${{github.event.pusher.email}}"
-        git config --global user.name "${{github.event.pusher.name}}"
+        git config --global user.name  "${{github.event.pusher.name}}"
         git commit -m "update-artifact ${TIMESTAMP}"
         git push https://${TOKEN}@github.com/org-kuanpern/eks03-app-manifest.git
 
         if [ ${target} = '${{ github.ref }}' ]
         then
           echo 'make pull request'
-          gh pr create --base main --fill
+          gh pr create --base main --head ${{ env.MANIFEST_BRANCH }} --fill
         fi
 
+
+#    - name: Extract branch name
+#      id: get-branch-name
+#      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
 
 #    - name: Make pull request (main branch only)
 #      id: make-pull-request
