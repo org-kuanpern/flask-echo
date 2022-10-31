@@ -71,6 +71,7 @@ jobs:
       run: |
         if [ ${target} = '${{ github.ref }}' ]
         then
+          cd eks03-app-manifest
           gh pr create --base main --fill
         else
           echo 'Do nothing for "${{ github.ref }}" branch'
