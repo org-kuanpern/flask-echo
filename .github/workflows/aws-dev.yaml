@@ -46,6 +46,7 @@ jobs:
         token: ${{ steps.fetch-token.outputs.token }}
         ref: ${{ env.MANIFEST_BRANCH }}
         path: ./eks03-app-manifest
+        fetch-depth: 0
 
     - name: Update Helm chart values in manifest git repo
       id: update-helm-values
@@ -76,7 +77,7 @@ jobs:
         then
           echo 'make pull request'
           cd eks03-app-manifest
-          gh pr create --base main --head ${{ env.MANIFEST_BRANCH }} --fill
+          gh pr create --base main --fill
         fi
 
 
