@@ -12,7 +12,6 @@ env:
   ROLE_SESSION_NAME: pushTestLambdaSession
   HELM_REPOSITORY: xxx
   HELM_PATH: xxx
-  WEBHOOK_API_KEY: ${{ secrets.GITHUBACTIONWEBHOOKAPI }}
 
 
 permissions:
@@ -20,43 +19,22 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  test-push-other:
     name: Deploy
     runs-on: ubuntu-latest
     environment: production
 
     steps:
-    - name: Get current date
-      id: get-timestamp
-      run: echo "::set-output name=timestamp::$(date +'%Y-%m-%dT%H:%M:%S')"
-
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+    - name: Checkout
+      uses: actions/checkout@v3
       with:
-        role-to-assume: ${{ env.ROLE_TO_ASSUME }}
-        role-session-name: ${{ env.ROLE_SESSION_NAME }}
-        aws-region: ${{ env.AWS_REGION }}
+        repository: org-kuanpern/eks03-app-manifest
+        token: ${{ secrets.my_pat }}
+        path: ./eks03-app-manifest
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Build, tag, and push image to Amazon ECR
-      id: build-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        # Build a docker container and push it to ECR
-        aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} || aws ecr create-repository --repository-name ${ECR_REPOSITORY}
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-        IMAGE_SHA=`docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG | awk 'BEGIN{FS="@"}{print $2}'`
-        echo "::set-output name=image_sha::$IMAGE_SHA"
     - name: Update Helm chart values in manifest git repo
       id: update-helm-values
       env:
@@ -64,12 +42,65 @@ jobs:
         TIMESTAMP: ${{ steps.get-timestamp.outputs.timestamp }}
         IMAGE_NAME: ${{ steps.build-image.outputs.image }}
       run: |
-        curl -v \
-          -X POST \
-          -H "apikey: ${{ env.WEBHOOK_API_KEY }}" \
-          -H "Content-Type: application/json" \
-          -d '{"login":"my_login","password":"my_password"}' \
-          http://api_org-test.apigee.net/v1/helloapikey
+        cd eks03-app-manifest
+        git checkout dev
+        echo "now you see me! (${TIMESTAMP})" > see-me.txt
+        git add see-me.txt
+        git commit -m "update-artifact"
+        git push origin dev
+
+
+
+#  deploy:
+#    name: Deploy
+#    runs-on: ubuntu-latest
+#    environment: production
+#
+#    steps:
+#    - name: Get current date
+#      id: get-timestamp
+#      run: echo "::set-output name=timestamp::$(date +'%Y-%m-%dT%H:%M:%S')"
+#
+#    - name: Checkout
+#      uses: actions/checkout@v3
+#
+#    - name: Configure AWS credentials
+#      uses: aws-actions/configure-aws-credentials@v1
+#      with:
+#        role-to-assume: ${{ env.ROLE_TO_ASSUME }}
+#        role-session-name: ${{ env.ROLE_SESSION_NAME }}
+#        aws-region: ${{ env.AWS_REGION }}
+#
+#    - name: Login to Amazon ECR
+#      id: login-ecr
+#      uses: aws-actions/amazon-ecr-login@v1
+#
+#    - name: Build, tag, and push image to Amazon ECR
+#      id: build-image
+#      env:
+#        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#        IMAGE_TAG: ${{ github.sha }}
+#      run: |
+#        # Build a docker container and push it to ECR
+#        aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} || aws ecr create-repository --repository-name ${ECR_REPOSITORY}
+#        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+#        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+#        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+#        IMAGE_SHA=`docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG | awk 'BEGIN{FS="@"}{print $2}'`
+#        echo "::set-output name=image_sha::$IMAGE_SHA"
+#    - name: Update Helm chart values in manifest git repo
+#      id: update-helm-values
+#      env:
+#        RUN_ID: $ {{ github.run_id }}
+#        TIMESTAMP: ${{ steps.get-timestamp.outputs.timestamp }}
+#        IMAGE_NAME: ${{ steps.build-image.outputs.image }}
+#      run: |
+#        curl -v \
+#          -X POST \
+#          -H "apikey: ${{ env.WEBHOOK_API_KEY }}" \
+#          -H "Content-Type: application/json" \
+#          -d '{"login":"my_login","password":"my_password"}' \
+#          http://api_org-test.apigee.net/v1/helloapikey
 
 
 
