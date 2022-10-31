@@ -67,6 +67,7 @@ jobs:
       id: make-pull-request
       env:
         target: "refs/heads/main"
+        GH_TOKEN: ${{ steps.fetch-token.outputs.token }}
       run: |
         if [ ${target} = '${{ github.ref }}' ]
         then
