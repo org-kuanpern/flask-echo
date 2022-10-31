@@ -10,6 +10,7 @@ env:
   ECR_REPOSITORY: lambda-listen-s3-creation-dev
   ROLE_TO_ASSUME: arn:aws:iam::858070140421:role/github-action-ecr-power-wtf
   ROLE_SESSION_NAME: pushTestLambdaSession
+  MANIFEST_BRANCH: dev
   HELM_REPOSITORY: xxx
   HELM_PATH: xxx
 
@@ -40,6 +41,7 @@ jobs:
       with:
         repository: org-kuanpern/eks03-app-manifest
         token: ${{ steps.fetch-token.outputs.token }}
+        ref: ${{ env.MANIFEST_BRANCH }}
         path: ./eks03-app-manifest
 
     - name: Update Helm chart values in manifest git repo
@@ -51,7 +53,6 @@ jobs:
         TOKEN: ${{ steps.fetch-token.outputs.token }}
       run: |
         cd eks03-app-manifest
-        git checkout dev
         echo "now you see me! (${TIMESTAMP})" > see-me.txt
         git add see-me.txt
         git commit -m "update-artifact"
