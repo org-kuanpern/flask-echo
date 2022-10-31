@@ -3,7 +3,7 @@ name: Build, Push to Amazon ECR, Update Helm values
 on:
   workflow_dispatch:
   push:
-    branches: [ "dev" ]
+    branches: [ "dev", "main" ]
 
 env:
   AWS_REGION:     ap-southeast-1
@@ -25,6 +25,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Get current date
+      id: get-timestamp
+      run: echo "::set-output name=timestamp::$(date +'%Y-%m-%dT%H:%M:%S')"
+
     - name: Checkout this
       uses: actions/checkout@v3
 
@@ -73,11 +77,6 @@ jobs:
 #    name: Deploy
 #    runs-on: ubuntu-latest
 #    environment: production
-#
-#    steps:
-#    - name: Get current date
-#      id: get-timestamp
-#      run: echo "::set-output name=timestamp::$(date +'%Y-%m-%dT%H:%M:%S')"
 #
 #    - name: Checkout
 #      uses: actions/checkout@v3
