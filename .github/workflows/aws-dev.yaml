@@ -60,7 +60,7 @@ jobs:
         git push https://${TOKEN}@github.com/org-kuanpern/eks03-app-manifest.git
 
     - name: Make pull request (main branch only)
-      id: update-helm-values
+      id: make-pull-request
       run: |
         if [${{ github.ref }} = 'refs/heads/main']
         then
