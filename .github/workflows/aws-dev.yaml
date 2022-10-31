@@ -68,11 +68,11 @@ jobs:
       env:
         target: "main"
       run: |
-        if ['${github.ref}' = '${target}']
+        if [ ${target} = '${{ github.ref }}' ]
         then
           gh pr create --base main --fill
         else
-          echo ${{ github.ref }}
+          echo 'Do nothing for "${{ github.ref }}"" branch'
         fi
 
 #  deploy:
