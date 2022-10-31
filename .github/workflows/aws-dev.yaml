@@ -62,7 +62,7 @@ jobs:
         git add see-me.txt
         git config --global user.email "${{github.event.pusher.email}}"
         git config --global user.name "${{github.event.pusher.name}}"
-        git commit -m "update-artifact"
+        git commit -m "update-artifact ${TIMESTAMP}"
         git push https://${TOKEN}@github.com/org-kuanpern/eks03-app-manifest.git
 
         if [ ${target} = '${{ github.ref }}' ]
