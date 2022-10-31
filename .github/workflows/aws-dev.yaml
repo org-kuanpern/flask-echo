@@ -114,14 +114,8 @@ jobs:
 # pass over metadata
 # API key\
 
-
-
-
-
-
-
-github app can listen to this id, but wouldn't know the values
-can send directly to the cluster, but need to identify myself securely
-can use api key
-api key must match
-build id must match
+# github app can listen to this id, but wouldn't know the values
+# can send directly to the cluster, but need to identify myself securely
+# can use api key
+# api key must match
+# build id must match
