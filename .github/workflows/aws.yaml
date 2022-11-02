@@ -1,0 +1,154 @@
+# Workflow:
+# 1. Build a Docker image based on Dockerfile
+# 2. Push the image to AWS EMR
+# 3. Update `values.yaml` in the manifest repository of the matching branch with the new 
+#    image name, and optionally other parameters based on inputs
+# 
+# This workflow makes the following assumptions:
+# 1. The branch name of the manifest repository and this repository must match (i.e. "dev -> dev", 
+#    "main -> main"; "main -> master" not allowed.)
+# 2. `MASTER_BRANCH_NAME` of the manifest repository is push-protected 
+# 3. Attempt to update the manifest repository `DEV_BRANCH_NAME` should be a pull request 
+#    from the `DEV_BRANCH_NAME`
+# 4. The `values.yaml` file is located at `/MANIFEST_PATH` relative the repository root
+
+
+name: Build & Push Image, Update Manifest Repo
+
+on:
+  workflow_dispatch:
+  push:
+    branches: #[ "staging", dev", "main" ]
+
+env:
+  AWS_REGION         : ap-southeast-1
+  ROLE_SESSION_NAME  : githubPushImage
+  ECR_REPOSITORY     : flask-echo
+  MANIFEST_REPOSITORY: org-kuanpern/k8s-app-manifest
+  MANIFEST_PATH      : flask-echo
+  MASTER_BRANCH_NAME : main
+  DEV_BRANCH_NAME    : dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  main:
+    name: Build-Push-Trigger
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Checkout this repository
+      uses: actions/checkout@v3
+
+    - name: Prepare repository metadata
+      id: metadata
+      run: |
+        # timestamp
+        echo "timestamp=$(date +'%Y-%m-%dT%H:%M:%S')" >> $GITHUB_OUTPUT
+        # extract branch name
+        branch=$(echo ${GITHUB_REF#refs/heads/})
+        echo "branch=${branch}" >> $GITHUB_OUTPUT
+
+    - name: Prepare AWS metadata
+      id: aws-metadata
+      env:
+        branch: ${{ steps.metadata.outputs.branch }}
+      run: |
+        # aws-role
+        IAM_ROLE=`_helpers/aws-helper.py --invoke get-github-action-role --params ${{ env.branch }}`
+        echo "ROLE_TO_ASSUME=${IAM_ROLE}" >> $GITHUB_OUTPUT
+
+    - name: fetch-github-app-install-token
+      id: fetch-token
+      uses: getsentry/action-github-app-token@v1
+      with:
+        app_id: ${{ secrets.MANIFEST_APP_ID }}
+        private_key: ${{ secrets.MANIFEST_APP_PRIVATE_KEY }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ steps.aws-metadata.outputs.ROLE_TO_ASSUME }}
+        role-session-name: ${{ env.ROLE_SESSION_NAME }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Checkout manifest repository
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ env.MANIFEST_REPOSITORY }}
+        token: ${{ steps.fetch-token.outputs.token }}
+        path: ./.manifest
+        fetch-depth: 0
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        branch: ${{ steps.metadata.outputs.branch }}
+      run: |
+        # Build a docker container and push it to ECR
+        aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} || aws ecr create-repository --repository-name ${ECR_REPOSITORY}
+
+        # REGISTRY_ID=`_helpers/aws-helper.py --invoke get-account-id --params ${{ env.branch }}`
+        # ECR_REGISTRY=${REGISTRY_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+
+        docker build -t localcache:latest .
+
+        SHA=`docker images --no-trunc --quiet localcache:latest | cut -c 8-19`
+        image=${ECR_REGISTRY}/${ECR_REPOSITORY}:${SHA}
+        docker tag localcache:latest ${image}
+        docker push ${image}
+
+        echo "image=${image}" >> $GITHUB_OUTPUT
+
+    - name: Update Helm chart values in manifest git repo
+      id: update-helm-values
+      env:
+        RUN_ID: ${{ github.run_id }}
+        TIMESTAMP: ${{ steps.metadata.outputs.timestamp }}
+        IMAGE_NAME: ${{ steps.build-image.outputs.image }}
+        TOKEN: ${{ steps.fetch-token.outputs.token }}
+        current_branch: ${{ steps.metadata.outputs.branch }}
+      run: |
+        cd ./.manifest
+
+        # SELECT MANIFEST BRANCH TO PUSH
+        # if the current_branch is main, set the manifest_branch to dev
+        # otherwise set to the matching branch
+        MANIFEST_BRANCH=${{ env.current_branch }}
+        if [ ${{ env.current_branch }} = ${MASTER_BRANCH_NAME} ]
+        then
+          MANIFEST_BRANCH=${DEV_BRANCH_NAME}}
+        fi
+        git checkout ${MANIFEST_BRANCH}
+
+        # UPDATE value
+        echo "Update image to ${{ env.IMAGE_NAME }} at (${TIMESTAMP})" > see-me.txt
+        git add *
+
+        # push
+        git config --global user.email "${{github.event.pusher.email}}"
+        git config --global user.name  "${{github.event.pusher.name}}"11
+        git commit -m "${{ github.event.head_commit.message }}"
+        git push https://${TOKEN}@github.com/${{ env.MANIFEST_REPOSITORY }}.git
+
+    - name: Make pull request (main branch only)
+      id: make-pull-request
+      env:
+        target: ${MASTER_BRANCH_NAME}
+        current_branch: ${{ steps.metadata.outputs.branch }}
+        GH_TOKEN: ${{ steps.fetch-token.outputs.token }}
+      run: |
+        if [ ${target} = '${current_branch}' ]
+        then
+          echo 'make pull request'
+          cd ./.manifest
+          gh pr create --base ${target} --head ${{ env.DEV_BRANCH_NAME }} --fill
+        fi
