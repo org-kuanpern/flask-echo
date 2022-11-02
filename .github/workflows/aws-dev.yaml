@@ -14,7 +14,6 @@ env:
   HELM_REPOSITORY: xxx
   HELM_PATH: xxx
 
-
 permissions:
   id-token: write
   contents: read
@@ -44,7 +43,6 @@ jobs:
       with:
         repository: org-kuanpern/eks03-app-manifest
         token: ${{ steps.fetch-token.outputs.token }}
-#        ref: ${{ env.MANIFEST_BRANCH }}
         path: ./eks03-app-manifest
         fetch-depth: 0
 
